@@ -61,8 +61,8 @@ struct ClipboardShelfView: View {
                 .font(.system(.callout, design: .rounded))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            ScrollView(.horizontal) {
-                LazyHStack(spacing: spacing) {
+            ScrollView(.vertical) {
+                LazyVStack(spacing: spacing) {
                     ForEach(clipboard.entries) { entry in
                         ClipboardEntryCard(entry: entry)
                     }
@@ -77,6 +77,14 @@ private struct ClipboardEntryCard: View {
     let entry: ClipboardEntry
     @State private var justCopied = false
 
+    /// Newlines would otherwise stretch the row; show the text as one line.
+    private func singleLine(_ text: String) -> String {
+        text.split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+    }
+
     var body: some View {
         Button {
             ClipboardManager.shared.copy(entry)
@@ -86,25 +94,22 @@ private struct ClipboardEntryCard: View {
                 justCopied = false
             }
         } label: {
-            Text(entry.text)
-                .font(.system(size: 11))
-                .foregroundStyle(.white.opacity(0.9))
-                .multilineTextAlignment(.leading)
-                .lineLimit(5)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .padding(8)
-                .frame(width: 112)
-                .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.08)))
-                .overlay {
-                    if justCopied {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 10).fill(Color.black.opacity(0.6))
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.title2)
-                                .foregroundStyle(.green)
-                        }
-                    }
+            HStack(spacing: 6) {
+                Text(singleLine(entry.text))
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if justCopied {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
                 }
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 28)
+            .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.08)))
+            .contentShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
         .contextMenu {
