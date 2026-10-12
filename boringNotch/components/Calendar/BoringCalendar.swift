@@ -470,7 +470,63 @@ struct CalendarView: View {
     @State private var selectedDate = Date()
     @Default(.calendarWeekView) private var calendarWeekView
 
+    /// The notch is still resizing for its first moments after opening, and
+    /// the day dial and event rows re-layout (and re-scroll) on every frame of
+    /// that. Show a placeholder until it settles, then build the real thing.
+    @State private var isReady = false
+    private let openSettleDelay: Duration = .milliseconds(420)
+
     var body: some View {
+        Group {
+            if isReady {
+                calendarContent
+                    .transition(.opacity)
+            } else {
+                skeleton
+            }
+        }
+        .onAppear {
+            guard !isReady else { return }
+            Task {
+                try? await Task.sleep(for: openSettleDelay)
+                withAnimation(.easeOut(duration: 0.15)) { isReady = true }
+            }
+        }
+        .onDisappear { isReady = false }
+    }
+
+    private var skeleton: some View {
+        let fill = Color.white.opacity(0.08)
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Capsule().fill(fill).frame(width: 44, height: 16)
+                    Capsule().fill(fill).frame(width: 64, height: 14)
+                }
+                Spacer(minLength: 0)
+                HStack(spacing: 8) {
+                    ForEach(0..<6, id: \.self) { _ in
+                        Circle().fill(fill).frame(width: 24, height: 24)
+                    }
+                }
+            }
+            .frame(height: 50)
+
+            HStack(spacing: 8) {
+                Capsule().fill(fill).frame(width: 3, height: 40)
+                VStack(alignment: .leading, spacing: 8) {
+                    Capsule().fill(fill).frame(width: 150, height: 12)
+                    Capsule().fill(fill).frame(width: 90, height: 10)
+                }
+                Spacer(minLength: 0)
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(.horizontal, 2)
+    }
+
+    private var calendarContent: some View {
         VStack(spacing: 0) {
             if calendarWeekView {
                 weekHeader
