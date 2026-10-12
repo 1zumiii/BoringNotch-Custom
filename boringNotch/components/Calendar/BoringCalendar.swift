@@ -471,47 +471,34 @@ struct CalendarView: View {
     @Default(.calendarWeekView) private var calendarWeekView
 
     /// The notch is still resizing for its first moments after opening, and
-    /// the day dial and event rows re-layout (and re-scroll) on every frame of
-    /// that. Show a placeholder until it settles, then build the real thing.
+    /// the event rows re-wrap and re-scroll on every frame of that. Show a
+    /// placeholder for the list until it settles, then build the real one.
+    /// The day header is cheap and stays live.
     @State private var isReady = false
+    @State private var settleTask: Task<Void, Never>?
     private let openSettleDelay: Duration = .milliseconds(420)
 
-    var body: some View {
-        Group {
-            if isReady {
-                calendarContent
-                    .transition(.opacity)
-            } else {
-                skeleton
-            }
+    /// Restart the settle timer. Cancelling the previous one matters: a stale
+    /// timer from an earlier open would otherwise end this one early.
+    private func beginSettle() {
+        settleTask?.cancel()
+        isReady = false
+        settleTask = Task {
+            try? await Task.sleep(for: openSettleDelay)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.15)) { isReady = true }
         }
-        .onAppear {
-            guard !isReady else { return }
-            Task {
-                try? await Task.sleep(for: openSettleDelay)
-                withAnimation(.easeOut(duration: 0.15)) { isReady = true }
-            }
-        }
-        .onDisappear { isReady = false }
     }
 
-    private var skeleton: some View {
-        let fill = Color.white.opacity(0.08)
-        return VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Capsule().fill(fill).frame(width: 44, height: 16)
-                    Capsule().fill(fill).frame(width: 64, height: 14)
-                }
-                Spacer(minLength: 0)
-                HStack(spacing: 8) {
-                    ForEach(0..<6, id: \.self) { _ in
-                        Circle().fill(fill).frame(width: 24, height: 24)
-                    }
-                }
-            }
-            .frame(height: 50)
+    private func resetSettle() {
+        settleTask?.cancel()
+        settleTask = nil
+        isReady = false
+    }
 
+    private var eventsSkeleton: some View {
+        let fill = Color.white.opacity(0.08)
+        return VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 8) {
                 Capsule().fill(fill).frame(width: 3, height: 40)
                 VStack(alignment: .leading, spacing: 8) {
@@ -520,13 +507,13 @@ struct CalendarView: View {
                 }
                 Spacer(minLength: 0)
             }
+            .padding(.top, 8)
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .padding(.horizontal, 2)
     }
 
-    private var calendarContent: some View {
+    var body: some View {
         VStack(spacing: 0) {
             if calendarWeekView {
                 weekHeader
@@ -534,14 +521,21 @@ struct CalendarView: View {
                 dialHeader
             }
 
-            let filteredEvents = EventListView.filteredEvents(
-                events: calendarManager.events
-            )
-            if filteredEvents.isEmpty {
-                EmptyEventsView(selectedDate: selectedDate)
-                    .frame(maxHeight: .infinity, alignment: .center)
+            if isReady {
+                let filteredEvents = EventListView.filteredEvents(
+                    events: calendarManager.events
+                )
+                Group {
+                    if filteredEvents.isEmpty {
+                        EmptyEventsView(selectedDate: selectedDate)
+                            .frame(maxHeight: .infinity, alignment: .center)
+                    } else {
+                        EventListView(events: calendarManager.events)
+                    }
+                }
+                .transition(.opacity)
             } else {
-                EventListView(events: calendarManager.events)
+                eventsSkeleton
             }
         }
         .onChange(of: selectedDate) {
@@ -552,6 +546,7 @@ struct CalendarView: View {
         .onChange(of: vm.notchState) { _, state in
             // Opening is already handled by onAppear below; doing both loaded
             // the day twice and re-scrolled the list mid-animation.
+            if state == .open { beginSettle() } else { resetSettle() }
             guard state != .open else { return }
             Task {
                 await calendarManager.updateCurrentDate(Date.now)
@@ -559,11 +554,13 @@ struct CalendarView: View {
             }
         }
         .onAppear {
+            beginSettle()
             Task {
                 await calendarManager.updateCurrentDate(Date.now)
                 selectedDate = Date.now
             }
         }
+        .onDisappear { resetSettle() }
     }
 
     /// Week-aligned layout: a month/year header above a fixed, full-width week strip.
