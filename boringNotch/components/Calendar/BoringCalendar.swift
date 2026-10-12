@@ -493,7 +493,10 @@ struct CalendarView: View {
                 await calendarManager.updateCurrentDate(selectedDate)
             }
         }
-        .onChange(of: vm.notchState) { _, _ in
+        .onChange(of: vm.notchState) { _, state in
+            // Opening is already handled by onAppear below; doing both loaded
+            // the day twice and re-scrolled the list mid-animation.
+            guard state != .open else { return }
             Task {
                 await calendarManager.updateCurrentDate(Date.now)
                 selectedDate = Date.now
