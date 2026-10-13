@@ -43,7 +43,7 @@ struct DashboardView: View {
                 }
             }
         }
-        .padding(.bottom, 14)
+        .padding(.bottom, 8)
         .onAppear {
             // The tab can be switched off while it is the remembered one.
             if !Defaults[.showDashboardTab] { coordinator.currentView = .home }

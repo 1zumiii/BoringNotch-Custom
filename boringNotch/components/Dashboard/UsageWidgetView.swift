@@ -58,7 +58,7 @@ struct UsageWidgetView: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
-            if !showsRings, !isNarrow {
+            if !isNarrow {
                 UsageUpdatedLabel(date: snapshot?.lastUpdatedDate)
             }
         }
@@ -70,11 +70,12 @@ struct UsageWidgetView: View {
     private func rings(_ snapshot: UsageSnapshot) -> some View {
         let windows = snapshot.windows
         let bars = snapshot.bars
-        // What the rest of the card needs, so the rings take what is left.
-        let reserved: CGFloat = 20 + 22 + 14 + 14 + CGFloat(bars.count) * 16 + 18
+        // What the rest of the card needs (padding, header, ring label, bars
+        // and the gaps between them), so the rings take what is left.
+        let reserved: CGFloat = 20 + 16 + 13 + CGFloat(bars.count) * 20 + 12
         let byHeight = size.height - reserved
         let byWidth = (size.width - 20) / CGFloat(max(windows.count, 1)) - 8
-        let diameter = min(max(min(byHeight, byWidth), 30), 64)
+        let diameter = min(max(min(byHeight, byWidth), 30), 60)
 
         HStack(spacing: 0) {
             ForEach(windows, id: \.title) { metric in
@@ -86,7 +87,9 @@ struct UsageWidgetView: View {
             UsageBarRow(metric: metric, tint: source.tint)
         }
         Spacer(minLength: 0)
-        UsageUpdatedLabel(date: snapshot.lastUpdatedDate)
+        if isNarrow {
+            UsageUpdatedLabel(date: snapshot.lastUpdatedDate)
+        }
     }
 
     // MARK: Short layout
