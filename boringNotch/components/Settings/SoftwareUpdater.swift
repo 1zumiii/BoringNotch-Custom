@@ -31,7 +31,7 @@ struct CheckForUpdatesView: View {
 
     var body: some View {
         Button("Check for Updates…", action: updater.checkForUpdates)
-            .disabled(!checkForUpdatesViewModel.canCheckForUpdates)
+            .disabled(CustomBuild.updatesDisabled || !checkForUpdatesViewModel.canCheckForUpdates)
     }
 }
 
@@ -53,13 +53,9 @@ struct UpdaterSettingsView: View {
             header: HStack {
                 Text("Software updates")
             },
-            footer: Text(
-                NSLocalizedString(
-                    "Stable and Beta come from official releases.",
-                    comment: "Software updates channel footer"
-                )
-            )
+            footer: updatesFooter
         ) {
+            Group {
             Picker(
                 NSLocalizedString("Update channel", comment: "Software updates channel picker label"),
                 selection: $updateChannel
@@ -82,6 +78,22 @@ struct UpdaterSettingsView: View {
                 .onChange(of: automaticallyDownloadsUpdates) { _, newValue in
                     updater.automaticallyDownloadsUpdates = newValue
                 }
+            }
+            .disabled(CustomBuild.updatesDisabled)
+        }
+    }
+
+    @ViewBuilder
+    private var updatesFooter: some View {
+        if CustomBuild.updatesDisabled {
+            Text("This is a customised build. Software updates are turned off so an official release can't overwrite your changes. To update, merge upstream into your fork and rebuild.")
+        } else {
+            Text(
+                NSLocalizedString(
+                    "Stable and Beta come from official releases.",
+                    comment: "Software updates channel footer"
+                )
+            )
         }
     }
 }
