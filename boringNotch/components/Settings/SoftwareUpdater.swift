@@ -81,6 +81,7 @@ struct UpdaterSettingsView: View {
                 }
             }
             .disabled(CustomBuild.updatesDisabled)
+            .foregroundStyle(CustomBuild.updatesDisabled ? .tertiary : .primary)
         }
     }
 

@@ -1,6 +1,22 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Based on Boring Notch" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Based on Boring Notch"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基于 Boring Notch"
+          }
+        }
+      }
+    },
     "This is a customised build. Software updates are turned off so an official release can't overwrite your changes. To update, merge upstream into your fork and rebuild." : {
       "localizations" : {
         "en" : {
