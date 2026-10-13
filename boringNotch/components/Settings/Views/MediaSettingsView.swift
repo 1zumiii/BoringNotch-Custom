@@ -127,11 +127,17 @@ struct MediaSettingsView: View {
                     HStack {
                         Text("Color rotation speed")
                         Spacer()
-                        Text(verbatim: String(format: "%.2g×", rainbowSpeed))
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
+                        Group {
+                            if rainbowSpeed == 0 {
+                                Text("Static")
+                            } else {
+                                Text(verbatim: String(format: "%.2g×", rainbowSpeed))
+                            }
+                        }
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
                     }
-                    Slider(value: $rainbowSpeed, in: 0.25...3, step: 0.25)
+                    Slider(value: $rainbowSpeed, in: 0...3, step: 0.25)
                 }
                 .disabled(!rainbowWaveform)
                 Defaults.Toggle(key: .realtimeAudioWaveform) {

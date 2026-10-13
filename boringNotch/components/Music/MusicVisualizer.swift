@@ -21,6 +21,7 @@ class MusicVisualizerModel: NSView, AudioCaptureLevelsConsumer {
     private static let rainbowSteps = 12
     private static let baseRainbowCycleSeconds: CFTimeInterval = 12
     private var rainbowCycleSeconds: CFTimeInterval = 12
+    private var rainbowSpeed: Double = 1
 
     private weak var attachedManager: AudioCaptureManager?
     private var lastAppliedLevels: [Float]
@@ -254,11 +255,13 @@ class MusicVisualizerModel: NSView, AudioCaptureLevelsConsumer {
         updateRainbowAnimation()
     }
 
-    /// Speed 1 is one full turn of hues in 12 seconds; 2 is twice as fast.
+    /// Speed 1 is one full turn of hues in 12 seconds; 2 is twice as fast;
+    /// 0 holds the colors still.
     func setRainbowSpeed(_ speed: Double) {
-        let cycle = Self.baseRainbowCycleSeconds / max(0.1, speed)
-        guard abs(cycle - rainbowCycleSeconds) > 0.001 else { return }
-        rainbowCycleSeconds = cycle
+        let speed = max(0, speed)
+        guard speed != rainbowSpeed else { return }
+        rainbowSpeed = speed
+        if speed > 0 { rainbowCycleSeconds = Self.baseRainbowCycleSeconds / speed }
         // The animation's duration is fixed once added, so swap it for a new one.
         for barLayer in barLayers { barLayer.removeAnimation(forKey: Self.rainbowKey) }
         updateRainbowAnimation()
@@ -268,7 +271,7 @@ class MusicVisualizerModel: NSView, AudioCaptureLevelsConsumer {
     /// it by itself and the app does no per-frame work. It only exists while
     /// the bars are moving.
     private func updateRainbowAnimation() {
-        let shouldAnimate = rainbowEnabled && isPlaying
+        let shouldAnimate = rainbowEnabled && isPlaying && rainbowSpeed > 0
         for (index, barLayer) in barLayers.enumerated() {
             let running = barLayer.animation(forKey: Self.rainbowKey) != nil
             if shouldAnimate && !running {
