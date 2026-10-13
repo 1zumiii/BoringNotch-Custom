@@ -33851,6 +33851,22 @@
           }
         }
       }
+    },
+    "Color rotation speed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Color rotation speed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "颜色轮转速度"
+          }
+        }
+      }
     }
   },
   "version" : "1.1"
