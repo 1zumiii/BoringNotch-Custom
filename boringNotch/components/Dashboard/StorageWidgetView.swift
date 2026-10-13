@@ -15,9 +15,11 @@ struct StorageWidgetView: View {
         let free: Int64
         var used: Int64 { max(total - free, 0) }
         var usedFraction: Double { total > 0 ? Double(used) / Double(total) : 0 }
+        var usedPercent: String { "\(Int((usedFraction * 100).rounded()))%" }
     }
 
-    private var showsRing: Bool { size.height >= 110 }
+    private var isStrip: Bool { size.height < 90 }
+    private var title: String { String(localized: "Storage") }
 
     private static func readCapacity() -> Capacity? {
         let keys: Set<URLResourceKey> = [.volumeTotalCapacityKey, .volumeAvailableCapacityForImportantUsageKey]
@@ -35,75 +37,104 @@ struct StorageWidgetView: View {
     var body: some View {
         TimelineView(.periodic(from: .now, by: 30)) { _ in
             let capacity = Self.readCapacity()
-            DashboardCard(icon: "internaldrive.fill", tint: Self.tint, title: String(localized: "Storage")) {
-                if let capacity {
-                    Text(verbatim: "\(Int((capacity.usedFraction * 100).rounded()))%")
-                        .font(.system(size: 10, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
-            } content: {
-                if let capacity {
-                    if showsRing {
-                        ring(capacity)
-                    } else {
-                        compact(capacity)
-                    }
+            Group {
+                if isStrip {
+                    strip(capacity)
                 } else {
-                    Text("No usage data yet")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    card(capacity)
                 }
             }
         }
         .frame(width: size.width, height: size.height)
     }
 
-    @ViewBuilder
-    private func ring(_ capacity: Capacity) -> some View {
-        let diameter = min(max(size.height - 20 - 22 - 20 - 8, 34), 66)
-        HStack(spacing: 12) {
-            GaugeRing(
-                fraction: capacity.usedFraction,
-                valueText: "\(Int((capacity.usedFraction * 100).rounded()))%",
-                label: String(localized: "Used"),
-                tint: Self.tint,
-                diameter: diameter
-            )
-            VStack(alignment: .leading, spacing: 2) {
-                Text(Self.bytes(capacity.free))
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
-                    .minimumScaleFactor(0.7)
-                    .lineLimit(1)
-                Text("Free")
-                    .font(.system(size: 10, weight: .semibold))
+    // MARK: Two rows tall
+
+    private func card(_ capacity: Capacity?) -> some View {
+        DashboardCard(icon: "internaldrive.fill", tint: Self.tint, title: title) {
+            if let capacity {
+                Text(verbatim: capacity.usedPercent)
+                    .font(.system(size: 10, weight: .semibold, design: .rounded))
                     .foregroundStyle(.secondary)
-                Text(verbatim: String(localized: "of") + " " + Self.bytes(capacity.total))
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .monospacedDigit()
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+        } content: {
+            if let capacity {
+                let diameter = min(max(size.height - 18 - 22 - 28, 40), 64)
+                Spacer(minLength: 4)
+                HStack(spacing: 12) {
+                    GaugeRing(
+                        fraction: capacity.usedFraction,
+                        valueText: capacity.usedPercent,
+                        label: String(localized: "Used"),
+                        tint: Self.tint,
+                        diameter: diameter
+                    )
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(Self.bytes(capacity.free))
+                            .font(.system(size: 15, weight: .bold, design: .rounded))
+                            .minimumScaleFactor(0.7)
+                            .lineLimit(1)
+                        Text("Free")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                        Text(verbatim: String(localized: "of") + " " + Self.bytes(capacity.total))
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                Spacer(minLength: 4)
+            } else {
+                emptyState
+            }
         }
-        Spacer(minLength: 0)
     }
 
-    @ViewBuilder
-    private func compact(_ capacity: Capacity) -> some View {
-        VStack(alignment: .leading, spacing: 7) {
-            GaugeBar(
-                fraction: capacity.usedFraction,
-                valueText: "\(Int((capacity.usedFraction * 100).rounded()))%",
-                label: String(localized: "Used"),
-                tint: Self.tint
-            )
-            Text(verbatim: Self.bytes(capacity.free) + " " + String(localized: "Free").lowercased())
-                .font(.system(size: 10))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
+    // MARK: One row tall
+
+    private func strip(_ capacity: Capacity?) -> some View {
+        DashboardCardChrome(tint: Self.tint) {
+            if let capacity {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 14) {
+                        DashboardCardTitle(icon: "internaldrive.fill", tint: Self.tint, title: title)
+                        MiniGauge(
+                            fraction: capacity.usedFraction,
+                            valueText: capacity.usedPercent,
+                            label: String(localized: "Used"),
+                            tint: Self.tint
+                        )
+                        Text(verbatim: Self.bytes(capacity.free) + " " + String(localized: "Free"))
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .lineLimit(1)
+                            .fixedSize()
+                    }
+                    .frame(maxHeight: .infinity)
+
+                    VStack(alignment: .leading, spacing: 7) {
+                        DashboardCardTitle(icon: "internaldrive.fill", tint: Self.tint, title: title)
+                        Text(verbatim: capacity.usedPercent + " · " + Self.bytes(capacity.free) + " " + String(localized: "Free"))
+                            .font(.system(size: 10, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .fixedSize()
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                }
+                .frame(maxHeight: .infinity)
+            } else {
+                emptyState
+            }
         }
-        Spacer(minLength: 0)
+    }
+
+    private var emptyState: some View {
+        Text("No usage data yet")
+            .font(.system(size: 11))
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

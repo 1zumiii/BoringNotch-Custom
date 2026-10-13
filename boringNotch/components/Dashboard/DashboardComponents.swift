@@ -16,8 +16,60 @@ func usageGaugeColor(used: Double, tint: Color) -> Color {
     }
 }
 
-/// The card every widget sits in: an icon badge, a title (with an optional
-/// monospaced subtitle), a trailing accessory, then the widget's content.
+/// The tinted, bordered rounded rectangle every widget sits in. Content that
+/// doesn't fit is clipped to the card instead of spilling over its neighbours.
+struct DashboardCardChrome<Content: View>: View {
+    let tint: Color
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        content
+            .padding(9)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(
+                LinearGradient(
+                    colors: [tint.opacity(0.16), Color.white.opacity(0.04)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white.opacity(0.07), lineWidth: 1))
+    }
+}
+
+/// Icon badge + title (+ optional monospaced subtitle).
+struct DashboardCardTitle: View {
+    let icon: String
+    let tint: Color
+    let title: String
+    var subtitle: String?
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(tint)
+                .frame(width: 22, height: 22)
+                .background(RoundedRectangle(cornerRadius: 7).fill(tint.opacity(0.18)))
+            VStack(alignment: .leading, spacing: 0) {
+                Text(title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .lineLimit(1)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.system(size: 9, weight: .medium, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            }
+        }
+        .fixedSize(horizontal: true, vertical: false)
+    }
+}
+
+/// The standard vertical card: title row, trailing accessory, then content.
 struct DashboardCard<Trailing: View, Content: View>: View {
     let icon: String
     let tint: Color
@@ -27,42 +79,52 @@ struct DashboardCard<Trailing: View, Content: View>: View {
     @ViewBuilder var content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(tint)
-                    .frame(width: 22, height: 22)
-                    .background(RoundedRectangle(cornerRadius: 7).fill(tint.opacity(0.18)))
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(title)
-                        .font(.system(size: 13, weight: .semibold))
-                        .lineLimit(1)
-                    if let subtitle {
-                        Text(subtitle)
-                            .font(.system(size: 9, weight: .medium, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                    }
+        DashboardCardChrome(tint: tint) {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 8) {
+                    DashboardCardTitle(icon: icon, tint: tint, title: title, subtitle: subtitle)
+                    Spacer(minLength: 4)
+                    trailing
                 }
-                Spacer(minLength: 4)
-                trailing
+                content
             }
-            content
         }
-        .padding(10)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: 16).fill(
-                LinearGradient(
-                    colors: [tint.opacity(0.16), Color.white.opacity(0.04)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-        )
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white.opacity(0.07), lineWidth: 1))
+    }
+}
+
+/// A tiny labelled bar for single-row ("strip") layouts.
+struct MiniGauge: View {
+    let fraction: Double
+    let valueText: String
+    let label: String
+    let tint: Color
+
+    private var used: Double { min(max(fraction, 0), 1) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
+                Text(label)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Spacer(minLength: 2)
+                Text(valueText)
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .lineLimit(1)
+            }
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.white.opacity(0.08))
+                    Capsule()
+                        .fill(usageGaugeColor(used: used, tint: tint))
+                        .frame(width: max(proxy.size.width * used, 5))
+                }
+            }
+            .frame(height: 5)
+        }
+        .frame(minWidth: 64)
     }
 }
 
@@ -76,52 +138,48 @@ struct GaugeRing: View {
 
     private var used: Double { min(max(fraction, 0), 1) }
     private var color: Color { usageGaugeColor(used: used, tint: tint) }
-    private var lineWidth: CGFloat { max(6, diameter * 0.13) }
+    private var lineWidth: CGFloat { max(5, diameter * 0.12) }
 
     var body: some View {
-        VStack(spacing: 5) {
-            ZStack {
-                Circle().stroke(Color.white.opacity(0.08), lineWidth: lineWidth)
-                Circle()
-                    .trim(from: 0, to: max(used, 0.012))
-                    .stroke(
-                        AngularGradient(
-                            colors: [color.opacity(0.55), color],
-                            center: .center,
-                            startAngle: .degrees(0),
-                            endAngle: .degrees(max(360 * used, 30))
-                        ),
-                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
-                    )
-                    .rotationEffect(.degrees(-90))
+        ZStack {
+            Circle().stroke(Color.white.opacity(0.08), lineWidth: lineWidth)
+            Circle()
+                .trim(from: 0, to: max(used, 0.012))
+                .stroke(
+                    AngularGradient(
+                        colors: [color.opacity(0.55), color],
+                        center: .center,
+                        startAngle: .degrees(0),
+                        endAngle: .degrees(max(360 * used, 30))
+                    ),
+                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
+                )
+                .rotationEffect(.degrees(-90))
+            VStack(spacing: 0) {
+                Text(label)
+                    .font(.system(size: max(8, diameter * 0.15), weight: .semibold))
+                    .foregroundStyle(.secondary)
                 centerText
             }
-            .frame(width: diameter, height: diameter)
-            .animation(.smooth(duration: 0.6), value: used)
-
-            Text(label)
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 7)
-                .padding(.vertical, 1.5)
-                .background(Capsule().fill(Color.white.opacity(0.08)))
         }
+        .frame(width: diameter, height: diameter)
+        .animation(.smooth(duration: 0.6), value: used)
     }
 
     @ViewBuilder
     private var centerText: some View {
         if valueText.hasSuffix("%") {
             (Text(valueText.dropLast())
-                .font(.system(size: diameter * 0.30, weight: .bold, design: .rounded))
+                .font(.system(size: diameter * 0.27, weight: .bold, design: .rounded))
              + Text("%")
-                .font(.system(size: diameter * 0.17, weight: .semibold, design: .rounded))
+                .font(.system(size: diameter * 0.15, weight: .semibold, design: .rounded))
                 .foregroundColor(.secondary))
                 .monospacedDigit()
                 .minimumScaleFactor(0.6)
                 .lineLimit(1)
         } else {
             Text(valueText)
-                .font(.system(size: diameter * 0.24, weight: .bold, design: .rounded))
+                .font(.system(size: diameter * 0.22, weight: .bold, design: .rounded))
                 .minimumScaleFactor(0.6)
                 .lineLimit(1)
         }
