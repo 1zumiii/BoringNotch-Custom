@@ -50,8 +50,8 @@ struct UsageWidgetView: View {
         let windows = snapshot.windows
         let bars = snapshot.bars
         let headerHeight: CGFloat = snapshot.model == nil ? 22 : 26
-        // Padding, header, the bar rows, and a little air around everything.
-        let reserved: CGFloat = 18 + headerHeight + CGFloat(bars.count) * 14 + 28
+        // Padding, header, the bar rows, and the minimum gaps between them.
+        let reserved: CGFloat = 18 + headerHeight + CGFloat(bars.count) * 14 + 22
         let byHeight = size.height - reserved
         let byWidth = (size.width - 18) / CGFloat(max(windows.count, 1)) - 8
         let diameter = min(max(min(byHeight, byWidth), 40), 64)
@@ -69,7 +69,10 @@ struct UsageWidgetView: View {
                 .frame(maxWidth: .infinity)
             }
         }
-        Spacer(minLength: 4)
+        // Spare height becomes equal gaps between the title, the rings and
+        // the bars, with the last row sitting on the card's bottom padding.
+        // With no bars the rings are centred under the title instead.
+        Spacer(minLength: 6)
         ForEach(bars, id: \.title) { metric in
             GaugeBar(
                 fraction: metric.normalizedValue ?? 0,
@@ -78,7 +81,6 @@ struct UsageWidgetView: View {
                 tint: source.tint
             )
         }
-        if !bars.isEmpty { Spacer(minLength: 2) }
     }
 
     // MARK: One row tall
