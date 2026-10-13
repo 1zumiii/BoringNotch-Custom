@@ -38,14 +38,34 @@ enum DashboardLayout {
     /// placement clamped to the grid and to its widget's size limits, so a
     /// layout saved by an older build can never produce an unusable page.
     static func normalized(_ stored: [DashboardPlacement]) -> [DashboardPlacement] {
-        DashboardWidgets.all.map { info in
-            var placement = stored.first { $0.id == info.id } ?? info.defaultPlacement
+        func clamped(_ placement: DashboardPlacement, _ info: DashboardWidgetInfo) -> DashboardPlacement {
+            var placement = placement
             placement.width = min(max(placement.width, info.minWidth), min(info.maxWidth, DashboardGrid.columns))
             placement.height = min(max(placement.height, info.minHeight), min(info.maxHeight, DashboardGrid.rows))
             placement.col = min(max(placement.col, 0), DashboardGrid.columns - placement.width)
             placement.row = min(max(placement.row, 0), DashboardGrid.rows - placement.height)
             return placement
         }
+
+        var result = DashboardWidgets.all.compactMap { info in
+            stored.first { $0.id == info.id }.map { clamped($0, info) }
+        }
+        // Widgets added after the layout was saved go in the first free space
+        // (smallest size as a fallback), or start switched off if there is none.
+        for info in DashboardWidgets.all where !result.contains(where: { $0.id == info.id }) {
+            let preferred = clamped(info.defaultPlacement, info)
+            var smallest = preferred
+            smallest.width = info.minWidth
+            smallest.height = info.minHeight
+            var placed = preferred
+            if let spot = [preferred, smallest].lazy.compactMap({ firstFreeSpot(for: $0, among: result) }).first {
+                placed = spot
+            } else {
+                placed.enabled = false
+            }
+            result.append(placed)
+        }
+        return DashboardWidgets.all.compactMap { info in result.first { $0.id == info.id } }
     }
 
     /// Fits on the grid, respects the widget's size limits, and doesn't sit

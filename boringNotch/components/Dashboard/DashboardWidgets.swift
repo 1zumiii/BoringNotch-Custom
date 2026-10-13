@@ -21,7 +21,9 @@ struct DashboardWidgetInfo: Identifiable {
 }
 
 enum DashboardWidgets {
-    static let all: [DashboardWidgetInfo] = UsageSource.all.enumerated().map { index, source in
+    static let all: [DashboardWidgetInfo] = usageWidgets + [storageWidget]
+
+    private static let usageWidgets: [DashboardWidgetInfo] = UsageSource.all.enumerated().map { index, source in
         DashboardWidgetInfo(
             id: source.id,
             title: LocalizedStringKey(source.displayName),
@@ -32,11 +34,26 @@ enum DashboardWidgets {
             maxWidth: 6,
             maxHeight: 2,
             defaultPlacement: DashboardPlacement(
-                id: source.id, enabled: true, col: index * 3, row: 0, width: 3, height: 2
+                id: source.id, enabled: true, col: index * 2, row: 0, width: 2, height: 2
             ),
             content: { size in AnyView(UsageWidgetView(source: source, size: size)) }
         )
     }
+
+    private static let storageWidget = DashboardWidgetInfo(
+        id: "storage",
+        title: "Storage",
+        icon: "internaldrive.fill",
+        tint: StorageWidgetView.tint,
+        minWidth: 2,
+        minHeight: 1,
+        maxWidth: 6,
+        maxHeight: 2,
+        defaultPlacement: DashboardPlacement(
+            id: "storage", enabled: true, col: UsageSource.all.count * 2, row: 0, width: 2, height: 2
+        ),
+        content: { size in AnyView(StorageWidgetView(size: size)) }
+    )
 
     static func info(for id: String) -> DashboardWidgetInfo? {
         all.first { $0.id == id }
