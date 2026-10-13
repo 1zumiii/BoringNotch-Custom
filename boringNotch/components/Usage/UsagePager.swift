@@ -26,24 +26,30 @@ struct UsagePager<Home: View>: View {
                         .transition(.opacity.combined(with: .offset(x: 24)))
                 }
             }
-            .overlay(alignment: .bottom) { dots }
+            .overlay(alignment: .top) { dots }
             .animation(.smooth(duration: 0.28), value: page)
         } else {
             home()
         }
     }
 
+    /// Real Buttons rather than tap gestures: the notch carries drag gestures
+    /// with no minimum distance that would otherwise swallow the click.
     private var dots: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 2) {
             ForEach(0..<2, id: \.self) { index in
-                Capsule()
-                    .fill(Color.white.opacity(page == index ? 0.85 : 0.25))
-                    .frame(width: page == index ? 14 : 5, height: 5)
-                    .contentShape(Rectangle().inset(by: -6))
-                    .onTapGesture { page = index }
+                Button {
+                    page = index
+                } label: {
+                    Capsule()
+                        .fill(Color.white.opacity(page == index ? 0.85 : 0.25))
+                        .frame(width: page == index ? 16 : 6, height: 6)
+                        .frame(width: 26, height: 20)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
         }
-        .padding(.bottom, 1)
         .animation(.smooth(duration: 0.2), value: page)
     }
 }
