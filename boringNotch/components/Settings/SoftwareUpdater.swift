@@ -52,6 +52,7 @@ struct UpdaterSettingsView: View {
         Section(
             header: HStack {
                 Text("Software updates")
+                    .foregroundStyle(CustomBuild.updatesDisabled ? .tertiary : .primary)
             },
             footer: updatesFooter
         ) {
@@ -87,6 +88,7 @@ struct UpdaterSettingsView: View {
     private var updatesFooter: some View {
         if CustomBuild.updatesDisabled {
             Text("This is a customised build. Software updates are turned off so an official release can't overwrite your changes. To update, merge upstream into your fork and rebuild.")
+                .foregroundStyle(.red)
         } else {
             Text(
                 NSLocalizedString(
