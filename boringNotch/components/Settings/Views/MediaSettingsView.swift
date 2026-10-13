@@ -28,8 +28,6 @@ struct MediaSettingsView: View {
 
     var body: some View {
         Form {
-            UsageSettingsSection()
-
             Section {
                 Picker("Music Source", selection: mediaControllerSelection) {
                     ForEach(MediaControllerType.allCases) { controller in

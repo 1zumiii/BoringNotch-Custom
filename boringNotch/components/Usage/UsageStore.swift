@@ -45,6 +45,8 @@ struct UsageSnapshot: Decodable, Equatable {
 
 struct UsageSource: Identifiable {
     let id: String
+    let displayName: String
+    let icon: String
     let relativePath: String
     let tint: Color
 
@@ -59,11 +61,15 @@ struct UsageSource: Identifiable {
     static let all: [UsageSource] = [
         UsageSource(
             id: "claude",
+            displayName: "Claude",
+            icon: "staroflife",
             relativePath: "Library/Application Support/RunCatIntegrations/claude-usage.json",
             tint: Color(red: 0.85, green: 0.47, blue: 0.34)
         ),
         UsageSource(
             id: "codex",
+            displayName: "Codex",
+            icon: "camera.aperture",
             relativePath: ".codex/runcat-usage.json",
             tint: Color(red: 0.36, green: 0.62, blue: 1.0)
         )

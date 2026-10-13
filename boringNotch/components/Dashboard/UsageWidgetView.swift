@@ -1,89 +1,110 @@
 //
-//  UsagePageView.swift
+//  UsageWidgetView.swift
 //  boringNotch
 //
-import Defaults
 import SwiftUI
 
-/// Claude and Codex usage, side by side: a ring per rate-limit window plus
-/// slim bars for anything else measured.
-struct UsagePageView: View {
+/// A Claude or Codex usage card that adapts to the cells it is given:
+/// tall cards draw a ring per rate-limit window, short ones fall back to
+/// compact bars so everything still fits.
+struct UsageWidgetView: View {
+    let source: UsageSource
+    let size: CGSize
+
     @ObservedObject private var store = UsageStore.shared
 
-    var body: some View {
-        HStack(spacing: 10) {
-            ForEach(UsageSource.all) { source in
-                UsageCard(source: source, snapshot: store.snapshots[source.id])
-            }
-        }
-        .padding(.bottom, 14)
-        .onAppear { store.beginWatching() }
-        .onDisappear { store.endWatching() }
-    }
-}
-
-private struct UsageCard: View {
-    let source: UsageSource
-    let snapshot: UsageSnapshot?
+    private var snapshot: UsageSnapshot? { store.snapshots[source.id] }
+    private var showsRings: Bool { size.height >= 110 }
+    private var isNarrow: Bool { size.width < 170 }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             header
             if let snapshot {
-                content(snapshot)
+                if showsRings {
+                    rings(snapshot)
+                } else {
+                    bars(snapshot)
+                }
             } else {
-                Spacer(minLength: 0)
                 Text("No usage data yet")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity)
-                Spacer(minLength: 0)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .padding(10)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(width: size.width, height: size.height, alignment: .topLeading)
         .background(RoundedRectangle(cornerRadius: 14).fill(Color.white.opacity(0.07)))
+        .onAppear { store.beginWatching() }
+        .onDisappear { store.endWatching() }
     }
+
+    // MARK: Header
 
     private var header: some View {
         HStack(spacing: 6) {
-            if let symbol = snapshot?.symbol {
-                Image(systemName: symbol)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(source.tint)
-            }
-            Text(snapshot?.title ?? source.id.capitalized)
+            Image(systemName: snapshot?.symbol ?? source.icon)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(source.tint)
+            Text(snapshot?.title ?? source.displayName)
                 .font(.system(size: 13, weight: .semibold))
                 .lineLimit(1)
             Spacer(minLength: 0)
-            if let model = snapshot?.model {
+            if !isNarrow, let model = snapshot?.model {
                 Text(model)
                     .font(.system(size: 9, weight: .medium, design: .monospaced))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
+            if !showsRings, !isNarrow {
+                UsageUpdatedLabel(date: snapshot?.lastUpdatedDate)
+            }
         }
     }
 
+    // MARK: Tall layout
+
     @ViewBuilder
-    private func content(_ snapshot: UsageSnapshot) -> some View {
+    private func rings(_ snapshot: UsageSnapshot) -> some View {
+        let windows = snapshot.windows
+        let bars = snapshot.bars
+        // What the rest of the card needs, so the rings take what is left.
+        let reserved: CGFloat = 20 + 22 + 14 + 14 + CGFloat(bars.count) * 16 + 18
+        let byHeight = size.height - reserved
+        let byWidth = (size.width - 20) / CGFloat(max(windows.count, 1)) - 8
+        let diameter = min(max(min(byHeight, byWidth), 30), 64)
+
         HStack(spacing: 0) {
-            ForEach(snapshot.windows, id: \.title) { metric in
-                UsageRing(metric: metric, tint: source.tint)
+            ForEach(windows, id: \.title) { metric in
+                UsageRing(metric: metric, tint: source.tint, diameter: diameter)
                     .frame(maxWidth: .infinity)
             }
         }
-        ForEach(snapshot.bars, id: \.title) { metric in
-            UsageBar(metric: metric, tint: source.tint)
+        ForEach(bars, id: \.title) { metric in
+            UsageBarRow(metric: metric, tint: source.tint)
         }
         Spacer(minLength: 0)
-        UpdatedLabel(date: snapshot.lastUpdatedDate)
+        UsageUpdatedLabel(date: snapshot.lastUpdatedDate)
+    }
+
+    // MARK: Short layout
+
+    @ViewBuilder
+    private func bars(_ snapshot: UsageSnapshot) -> some View {
+        let rows = snapshot.windows + snapshot.bars
+        VStack(spacing: 5) {
+            ForEach(rows, id: \.title) { metric in
+                UsageBarRow(metric: metric, tint: source.tint)
+            }
+        }
+        Spacer(minLength: 0)
     }
 }
 
 /// Green-ish at rest, amber then red as the limit gets close.
-private func gaugeColor(used: Double, tint: Color) -> Color {
+func usageGaugeColor(used: Double, tint: Color) -> Color {
     switch used {
     case 0.9...: return Color(red: 1.0, green: 0.33, blue: 0.30)
     case 0.7...: return Color(red: 1.0, green: 0.70, blue: 0.20)
@@ -94,6 +115,7 @@ private func gaugeColor(used: Double, tint: Color) -> Color {
 private struct UsageRing: View {
     let metric: UsageMetric
     let tint: Color
+    let diameter: CGFloat
 
     private var used: Double { min(max(metric.normalizedValue ?? 0, 0), 1) }
 
@@ -104,16 +126,16 @@ private struct UsageRing: View {
                 Circle()
                     .trim(from: 0, to: max(used, 0.015))
                     .stroke(
-                        gaugeColor(used: used, tint: tint),
+                        usageGaugeColor(used: used, tint: tint),
                         style: StrokeStyle(lineWidth: 6, lineCap: .round)
                     )
                     .rotationEffect(.degrees(-90))
                 Text(metric.formattedValue)
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .font(.system(size: diameter > 44 ? 12 : 10, weight: .semibold, design: .rounded))
                     .monospacedDigit()
                     .minimumScaleFactor(0.7)
             }
-            .frame(width: 52, height: 52)
+            .frame(width: diameter, height: diameter)
             .animation(.smooth(duration: 0.6), value: used)
 
             Text(metric.title)
@@ -123,7 +145,7 @@ private struct UsageRing: View {
     }
 }
 
-private struct UsageBar: View {
+private struct UsageBarRow: View {
     let metric: UsageMetric
     let tint: Color
 
@@ -140,7 +162,7 @@ private struct UsageBar: View {
                 ZStack(alignment: .leading) {
                     Capsule().fill(Color.white.opacity(0.1))
                     Capsule()
-                        .fill(gaugeColor(used: used, tint: tint))
+                        .fill(usageGaugeColor(used: used, tint: tint))
                         .frame(width: max(proxy.size.width * used, 4))
                 }
             }
@@ -153,7 +175,7 @@ private struct UsageBar: View {
     }
 }
 
-private struct UpdatedLabel: View {
+private struct UsageUpdatedLabel: View {
     let date: Date?
 
     var body: some View {

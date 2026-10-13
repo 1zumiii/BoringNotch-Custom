@@ -534,8 +534,10 @@ extension Defaults.Keys {
     static let osdBrightnessSource = Key<OSDControlSource>("osdBrightnessSource", default: .builtin)
     static let osdVolumeSource = Key<OSDControlSource>("osdVolumeSource", default: .builtin)
 
-    // MARK: Usage dashboard
-    static let showUsagePage = Key<Bool>("showUsagePage", default: false)
+    // MARK: Dashboard
+    static let showDashboardTab = Key<Bool>("showDashboardTab", default: false)
+    /// Grid placement of each dashboard widget. See DashboardLayout.
+    static let dashboardLayout = Key<[DashboardPlacement]>("dashboardLayout", default: DashboardLayout.defaults)
 
     // MARK: Shelf
     static let boringShelf = Key<Bool>("boringShelf", default: true)
