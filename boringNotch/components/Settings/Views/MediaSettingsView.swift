@@ -118,6 +118,9 @@ struct MediaSettingsView: View {
                 Defaults.Toggle(key: .coloredSpectrogram) {
                     Text("Colored spectrogram")
                 }
+                Defaults.Toggle(key: .rainbowWaveform) {
+                    Text("Rainbow waveform")
+                }
                 Defaults.Toggle(key: .realtimeAudioWaveform) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Real-time audio waveform")

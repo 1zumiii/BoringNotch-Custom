@@ -467,6 +467,8 @@ extension Defaults.Keys {
     // MARK: Media playback
     static let coloredSpectrogram = Key<Bool>("coloredSpectrogram", default: true)
     static let realtimeAudioWaveform = Key<Bool>("realtimeAudioWaveform", default: false)
+    /// Every bar of the closed-notch waveform gets its own hue, slowly rotating.
+    static let rainbowWaveform = Key<Bool>("rainbowWaveform", default: false)
     static let enableSneakPeek = Key<Bool>("enableSneakPeek", default: false)
     static let sneakPeekStyles = Key<SneakPeekStyle>("sneakPeekStyles", default: .standard)
     static let waitInterval = Key<Double>("waitInterval", default: 3)

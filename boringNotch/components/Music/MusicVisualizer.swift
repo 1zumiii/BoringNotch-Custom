@@ -15,6 +15,9 @@ class MusicVisualizerModel: NSView, AudioCaptureLevelsConsumer {
     private var useRealtime = false
     private var tintColor: NSColor = .systemBlue
     private var lastTintColor: NSColor?
+    private var rainbowEnabled = false
+    private var rainbowPhase: CGFloat = 0
+    private var rainbowTimer: Timer?
 
     private weak var attachedManager: AudioCaptureManager?
     private var lastAppliedLevels: [Float]
@@ -43,6 +46,7 @@ class MusicVisualizerModel: NSView, AudioCaptureLevelsConsumer {
     }
 
     deinit {
+        rainbowTimer?.invalidate()
         attachedManager?.clearLevelsConsumer(self)
     }
 
@@ -140,6 +144,7 @@ class MusicVisualizerModel: NSView, AudioCaptureLevelsConsumer {
     func setPlaying(_ playing: Bool) {
         guard isPlaying != playing else { return }
         isPlaying = playing
+        updateRainbowTimer()
         if playing {
             expandBars(animated: true)
             if !useRealtime {
@@ -209,8 +214,63 @@ class MusicVisualizerModel: NSView, AudioCaptureLevelsConsumer {
         if let last = lastTintColor, last.isEqual(color) { return }
         lastTintColor = color
         tintColor = color
-        let colors = [color.withAlphaComponent(0.6).cgColor, color.cgColor]
+        guard !rainbowEnabled else { return }
+        applyTintColors()
+    }
+
+    private func applyTintColors() {
+        let colors = [tintColor.withAlphaComponent(0.6).cgColor, tintColor.cgColor]
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
         barLayers.forEach { $0.colors = colors }
+        CATransaction.commit()
+    }
+
+    // MARK: Rainbow
+
+    func setRainbow(_ enabled: Bool) {
+        guard rainbowEnabled != enabled else { return }
+        rainbowEnabled = enabled
+        if enabled {
+            applyRainbowColors()
+        } else {
+            applyTintColors()
+        }
+        updateRainbowTimer()
+    }
+
+    /// The hues only drift while the bars are moving; paused, they hold still.
+    private func updateRainbowTimer() {
+        guard rainbowEnabled && isPlaying else {
+            rainbowTimer?.invalidate()
+            rainbowTimer = nil
+            return
+        }
+        guard rainbowTimer == nil else { return }
+        let timer = Timer(timeInterval: 1.0 / 15.0, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            self.rainbowPhase = (self.rainbowPhase + 0.012).truncatingRemainder(dividingBy: 1)
+            self.applyRainbowColors()
+        }
+        timer.tolerance = 0.03
+        RunLoop.main.add(timer, forMode: .common)
+        rainbowTimer = timer
+    }
+
+    private func applyRainbowColors() {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        for (index, barLayer) in barLayers.enumerated() {
+            let hue = (CGFloat(index) / CGFloat(barCount) * 0.85 + rainbowPhase)
+                .truncatingRemainder(dividingBy: 1)
+            let top = NSColor(hue: hue, saturation: 0.85, brightness: 1.0, alpha: 1.0)
+            let bottom = NSColor(
+                hue: (hue + 0.06).truncatingRemainder(dividingBy: 1),
+                saturation: 0.9, brightness: 0.85, alpha: 0.7
+            )
+            barLayer.colors = [bottom.cgColor, top.cgColor]
+        }
+        CATransaction.commit()
     }
 
     private func applyFrame(to barLayer: CALayer, at index: Int, height: CGFloat) {
@@ -224,11 +284,13 @@ struct MusicVisualizer: NSViewRepresentable {
     let isPlaying: Bool
     let tintColor: Color
     @Default(.realtimeAudioWaveform) var realtimeEnabled: Bool
+    @Default(.rainbowWaveform) var rainbowEnabled: Bool
     @ObservedObject private var audioCapture = AudioCaptureManager.shared
 
     func makeNSView(context: Context) -> MusicVisualizerModel {
         let spectrum = MusicVisualizerModel()
         spectrum.setTintColor(NSColor(tintColor))
+        spectrum.setRainbow(rainbowEnabled)
         spectrum.setUseRealtime(realtimeEnabled && audioCapture.isCapturing)
         spectrum.setPlaying(isPlaying)
         spectrum.attach(to: audioCapture)
@@ -238,6 +300,7 @@ struct MusicVisualizer: NSViewRepresentable {
 
     func updateNSView(_ nsView: MusicVisualizerModel, context: Context) {
         nsView.setTintColor(NSColor(tintColor))
+        nsView.setRainbow(rainbowEnabled)
         nsView.setUseRealtime(realtimeEnabled && audioCapture.isCapturing)
         nsView.setPlaying(isPlaying)
         nsView.syncCurrentLevels(from: audioCapture)
