@@ -81,8 +81,8 @@ Shelf（文件架）标签页里加了一块剪贴板临时区：纵向单行列
 需要 macOS 15.6+ 和 Xcode 26+。
 
 ```bash
-git clone https://github.com/1zumiii/boring.notch.git
-cd boring.notch
+git clone https://github.com/1zumiii/BoringNotch-Custom.git
+cd BoringNotch-Custom
 git checkout custom-main
 open boringNotch.xcodeproj
 ```
