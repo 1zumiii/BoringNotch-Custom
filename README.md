@@ -1,5 +1,7 @@
 <h1 align="center">Boring Notch · Izumi Edition</h1>
 
+<p align="center">简体中文 · <a href="README.en.md">English</a></p>
+
 <p align="center">
   基于 <a href="https://github.com/TheBoredTeam/boring.notch">Boring Notch</a> 的个人定制版本，在刘海中加入通知、仪表盘和应用混音器。<br>
   上游原版的说明保留在 <a href="README.upstream.md">README.upstream.md</a>。
