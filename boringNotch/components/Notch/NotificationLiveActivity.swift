@@ -5,7 +5,7 @@
 
 import SwiftUI
 
-private struct NotificationSourceIcon: View {
+struct NotificationSourceIcon: View {
     let bundleID: String?
     let size: CGFloat
 
@@ -52,6 +52,8 @@ struct PriorityGlowBorder<S: Shape>: View {
 struct NotificationLiveActivity: View {
     @EnvironmentObject private var vm: BoringViewModel
     let notification: SystemNotification
+    /// Just the app's icon on the left, for an icon-only app.
+    var iconOnly = false
 
     @State private var ringScale: CGFloat = 1
     @State private var ringOpacity = 0.0
@@ -69,13 +71,15 @@ struct NotificationLiveActivity: View {
                 .frame(width: vm.closedNotchSize.width - cornerRadiusInsets.closed.top)
 
             ZStack {
-                Circle()
-                    .stroke(Color.effectiveAccent, lineWidth: 1.5)
-                    .scaleEffect(ringScale)
-                    .opacity(ringOpacity)
-                Circle()
-                    .fill(Color.effectiveAccent)
-                    .frame(width: 7, height: 7)
+                if !iconOnly {
+                    Circle()
+                        .stroke(Color.effectiveAccent, lineWidth: 1.5)
+                        .scaleEffect(ringScale)
+                        .opacity(ringOpacity)
+                    Circle()
+                        .fill(Color.effectiveAccent)
+                        .frame(width: 7, height: 7)
+                }
             }
             .frame(width: itemSize, height: itemSize)
         }
