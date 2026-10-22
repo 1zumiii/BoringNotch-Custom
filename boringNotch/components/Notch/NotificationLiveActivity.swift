@@ -8,8 +8,24 @@ import SwiftUI
 struct NotificationSourceIcon: View {
     let bundleID: String?
     let size: CGFloat
+    /// A small dot at the bottom right that marks the icon as a notification.
+    var showsBadge = false
 
     var body: some View {
+        icon
+            .overlay(alignment: .bottomTrailing) {
+                if showsBadge {
+                    Circle()
+                        .fill(Color.effectiveAccent)
+                        .frame(width: size * 0.32, height: size * 0.32)
+                        .overlay(Circle().stroke(.black, lineWidth: 1.5))
+                        .offset(x: size * 0.08, y: size * 0.08)
+                }
+            }
+    }
+
+    @ViewBuilder
+    private var icon: some View {
         if let agent = SystemNotificationAgents.info(bundleID: bundleID) {
             Image(systemName: agent.symbol)
                 .font(.system(size: size * 0.55))
@@ -64,7 +80,7 @@ struct NotificationLiveActivity: View {
 
     var body: some View {
         HStack {
-            NotificationSourceIcon(bundleID: notification.bundleID, size: itemSize)
+            NotificationSourceIcon(bundleID: notification.bundleID, size: itemSize, showsBadge: iconOnly)
 
             Rectangle()
                 .fill(.black)

@@ -815,7 +815,7 @@ struct ContentView: View {
                 .opacity(notificationManager.iconPeek == nil ? 1 : 0)
                 .overlay {
                     if let peek = notificationManager.iconPeek {
-                        NotificationSourceIcon(bundleID: peek.bundleID, size: scaledArtSize)
+                        NotificationSourceIcon(bundleID: peek.bundleID, size: scaledArtSize, showsBadge: true)
                             .transition(.opacity.combined(with: .scale(scale: 0.8)))
                     }
                 }
