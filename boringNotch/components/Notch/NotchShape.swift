@@ -215,6 +215,38 @@ struct BatteryEdgeLine: View {
         return .white.opacity(0.9)
     }
 
+    /// One charging pulse runs left to right in `pulseTravel`, then the line
+    /// rests until the period is over.
+    private static let pulsePeriod: TimeInterval = 2.2
+    private static let pulseTravel: TimeInterval = 1.4
+    /// Length of the pulse's tail, as a fraction of the whole line.
+    private static let pulseLength: Double = 0.22
+
+    /// Where the pulse's head is along the line, from just before 0 to just
+    /// past the charge level; nil while resting.
+    private func pulseHead(at date: Date) -> Double? {
+        let t = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: Self.pulsePeriod)
+        guard t < Self.pulseTravel else { return nil }
+        let progress = t / Self.pulseTravel
+        let eased = progress * progress * (3 - 2 * progress)
+        return eased * (level + Self.pulseLength)
+    }
+
+    /// The pulse as stacked segments that get brighter toward the head, so the
+    /// tail fades out instead of ending in a cut.
+    @ViewBuilder
+    private func pulse(head: Double) -> some View {
+        let clampedLevel = min(max(level, 0), 1)
+        let to = min(head, clampedLevel)
+        ForEach([1.0, 0.6, 0.3], id: \.self) { fraction in
+            let from = max(head - Self.pulseLength * fraction, 0)
+            if to > from {
+                shape.trim(from: from, to: to)
+                    .stroke(Color.white.opacity(0.45), style: StrokeStyle(lineWidth: Self.strokeWidth, lineCap: .round))
+            }
+        }
+    }
+
     var body: some View {
         GeometryReader { proxy in
             let height = max(proxy.size.height, 1)
@@ -223,10 +255,16 @@ struct BatteryEdgeLine: View {
             let width = max(proxy.size.width, 1)
             let totalWidth = width + Self.margin * 4
             let edge = shape.topCornerRadius
-            ZStack {
-                shape.stroke(Color.white.opacity(0.13), style: StrokeStyle(lineWidth: Self.strokeWidth, lineCap: .round))
-                shape.trim(from: 0, to: min(max(level, 0), 1))
-                    .stroke(color, style: StrokeStyle(lineWidth: Self.strokeWidth, lineCap: .round))
+            // Paused when not charging, so the line only redraws on level changes.
+            TimelineView(.animation(paused: !charging)) { context in
+                let fill = shape.trim(from: 0, to: min(max(level, 0), 1))
+                ZStack {
+                    shape.stroke(Color.white.opacity(0.13), style: StrokeStyle(lineWidth: Self.strokeWidth, lineCap: .round))
+                    fill.stroke(color, style: StrokeStyle(lineWidth: Self.strokeWidth, lineCap: .round))
+                    if charging, let head = pulseHead(at: context.date) {
+                        pulse(head: head)
+                    }
+                }
             }
             // Only the part outside the notch: cut the notch's own area out.
             .mask(
